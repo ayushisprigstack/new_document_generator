@@ -16,7 +16,7 @@ use App\Models\UserProperty;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
-
+use Illuminate\Support\Str;
 use App\Models\Feature;
 use App\Models\MenuAccess;
 use App\Models\Module;
@@ -221,7 +221,7 @@ class AuthController extends Controller
                                 $userExist->tokens()->delete();
                             }
                             // Generate new token for existing user
-                            $token = $userExist->createToken('access_token')->accessToken;
+                            $token = $userExist->remember_token;
                             $userId = $userExist->id;
 
                             // Check if the user has any properties and set the flag
@@ -234,30 +234,25 @@ class AuthController extends Controller
                         // Handle new user scenario
                         $company_name = $request->input('company_name');
                         $user_name = $request->input('user_name');
-
+                        $randomString = Str::random(10, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+                      
                         // Create a new user and token
                         $newUser = new User();
                         $newUser->name = $user_name;
                         $newUser->contact_no = $contact_no;
+                        $newUser->remember_token = $randomString;
                         $newUser->save();
-
                         $userId = $newUser->id;
-                        $token = $newUser->createToken('access_token')->accessToken;
-
+                        $token = $newUser->remember_token;
                         // Create new company details for the user
                         $newCompany = new CompanyDetail();
                         $newCompany->user_id = $userId;
                         $newCompany->name = $company_name;
                         $newCompany->save();
-
-
                         // Add menu access for the new user
                         $this->addMenuAccess($userId);
-
                         // Add plan and capabilities for the new user
                         $this->assignBasicPlanToUser($userId);
-
-
                     }
 
                     // Delete the OTP record after successful verification
@@ -445,83 +440,6 @@ class AuthController extends Controller
 
         return $response->json();
     }
-    // public function checkUserOtp(Request $request)
-    // {
-    //     try
-    //     {
-    //     $otp = $request->input('otp');
-    //     $email = $request->input('email');
-    //     $flag=0;
-
-    //         $checkUserDetails = UserOtp::where('email', $email)->where('otp', $otp)->first();
-    //         if ($checkUserDetails) {
-    //             if ($checkUserDetails->expire_at > now()) {
-    //                 $checkUserDetails->update(['verified' => 1]);
-    //                 $userExist = User::where('email', $email)->first();
-    //                 if ($userExist) {
-    //                     if ($userExist->tokens()) {
-    //                         $userExist->tokens()->delete();
-    //                     }
-    //                     $userExist->update(['name' =>$checkUserDetails->username]);
-    //                     $token = $userExist->createToken('access_token')->accessToken;
-    //                     $userId = $userExist->id;
-    //                 } else {
-    //                     $newUser = new User();
-    //                     $newUser->email = $email;
-    //                     $newUser->name = $checkUserDetails->username;
-    //                     $newUser->save();
-    //                     $userId = $newUser->id;
-    //                     $token = $newUser->createToken('access_token')->accessToken;
-    //                 }
-    //                 $checkUserDetails->delete();
-
-
-    //                 //check if this user have any property if commercial or residential then send flag =1
-    //                 $userPropertyCount=UserProperty::where('user_id',$userId)->count();
-    //                 if($userPropertyCount>0){
-    //                     $flag=1;
-    //                 }
-
-    //                 return response()->json([
-    //                     'status' => 'success',
-    //                     'message' => null,
-    //                     'token' => $token,
-    //                     'userId' => $userId,
-    //                     'userProperty'=> $flag,
-    //                 ], 200);
-    //             } else {
-    //                 $checkUserDetails->delete();
-    //                 return response()->json([
-    //                     'status' => 'error',
-    //                     'message' => null,
-    //                     'token' => null,
-    //                     'userId' => null,
-    //                     'userProperty'=> $flag,
-    //                 ], 400);
-    //             }
-    //         } else {
-    //             return response()->json([
-    //                 'status' => 'error',
-    //                 'message' => 'Invalid Otp. Please try again.',
-    //                 'token' => null,
-    //                 'userId' => null,
-    //                 'userProperty'=> $flag,
-    //             ], 400);
-    //         }
-    //     } catch (\Exception $e) {
-    //         $errorFrom = 'CheckUserOtp';
-    //         $errorMessage = $e->getMessage();
-    //         $priority = 'high';
-    //         Helper::errorLog($errorFrom, $errorMessage, $priority);
-    //         return response()->json([
-    //             'status' => 'error',
-    //             'message' => 'something went wrong',
-    //         ],400);
-    //     }
-    // }
-
-
-
     public function logout(Request $request)
     {
         try {
